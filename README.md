@@ -8,11 +8,25 @@ Shipped as a **Claude Code plugin** (no CLI, no npm install). Skills run inside 
 
 ## Install
 
-```bash
-# From the Claude Code marketplace (once published)
-/plugin install hsdk
+Inside Claude Code, run these two commands in order:
 
-# Or local development install
+```
+/plugin marketplace add itstudyu/hsdk
+/plugin install hsdk@hsdk
+```
+
+The first command registers this GitHub repository as a single-plugin marketplace (the repo ships its own `.claude-plugin/marketplace.json`). The second installs the `hsdk` plugin from that marketplace. The `@hsdk` suffix disambiguates if you have multiple marketplaces registered.
+
+### Update later
+
+```
+/plugin marketplace update hsdk
+/plugin install hsdk@hsdk
+```
+
+### Local development install (optional)
+
+```bash
 cd ~/.claude/plugins/local
 git clone https://github.com/itstudyu/hsdk.git
 ```
