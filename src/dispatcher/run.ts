@@ -19,7 +19,13 @@ export interface DispatchOptions {
   ticketId: string;
 }
 
-async function dispatchOne(opts: DispatchOptions, step: WorkflowStep): Promise<void> {
+interface StepResult {
+  step: WorkflowStep;
+  output: string;
+  hasDodVerification: boolean;
+}
+
+async function dispatchOne(opts: DispatchOptions, step: WorkflowStep): Promise<StepResult> {
   const paths = resolveHarnessPaths(opts.projectRoot);
   const tDir = ticketDir(paths, opts.ticketId, 'active');
   const plan = await readPlanFile(planMdPath(tDir));
@@ -27,7 +33,12 @@ async function dispatchOne(opts: DispatchOptions, step: WorkflowStep): Promise<v
   const refs = await readRefs(paths.refsYaml);
 
   const workerPlanPath = step.plan ? join(tDir, step.plan) : undefined;
-  const planSection = await extractPlanSection(plan.body, workerPlanPath, step.step);
+  const planSection = await extractPlanSection(
+    plan.body,
+    workerPlanPath,
+    step.step,
+    plan.frontmatter.escape_reason,
+  );
 
   const systemPrompt = await buildWorkerPrompt({
     projectRoot: opts.projectRoot,
@@ -43,7 +54,7 @@ async function dispatchOne(opts: DispatchOptions, step: WorkflowStep): Promise<v
     userPrompt: `step ${step.step}: ${step.worker} を実行してください。Output Format に従って結果を返してください。`,
   });
 
-  await appendResult(resultsMdPath(tDir), step.worker, result.output);
+  return { step, output: result.output, hasDodVerification: result.hasDodVerification };
 }
 
 export async function dispatch(opts: DispatchOptions): Promise<void> {
@@ -57,7 +68,16 @@ export async function dispatch(opts: DispatchOptions): Promise<void> {
     const plan = await readPlanFile(pmd);
     const batches = scheduleBatches(plan.frontmatter.workflow);
     for (const batch of batches) {
-      await Promise.all(batch.map((step) => dispatchOne(opts, step)));
+      const stepResults = await Promise.all(batch.map((step) => dispatchOne(opts, step)));
+      stepResults.sort((a, b) => a.step.step - b.step.step);
+      for (const r of stepResults) {
+        if (!r.hasDodVerification) {
+          throw new Error(
+            `worker "${r.step.worker}" (step ${r.step.step}) output missing "## DoD verification" section`,
+          );
+        }
+        await appendResult(resultsMdPath(tDir), r.step.worker, r.output);
+      }
     }
     await setStatus(pmd, 'done');
     await moveTicketToDone(paths, opts.ticketId);

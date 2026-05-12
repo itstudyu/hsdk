@@ -31,7 +31,9 @@ export async function runInit(projectRoot: string): Promise<void> {
     await writeRefs(refsPath, {
       version: 1,
       bootstrapped: true,
-      defaults: [],
+      defaults: [
+        { path: 'docs/structure.md', role: 'project-structure', 'auto-load': 'always' },
+      ],
       'user-defined': [],
       'per-worker': {},
     });
