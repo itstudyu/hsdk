@@ -181,10 +181,17 @@ rm -rf ".harness/tickets/active/$ID"
 - ❌ status가 draft인 상태로 종료하지 않고 강제로 ready 전환
 - ❌ `Edit/Write`로 plan.md 본문을 직접 수정 (frontmatter approved_at 기록은 예외)
 
-## Self-Verification
+## Self-Verification (existence + cross-check, revfactory qa-agent-guide §3-2)
 
-종료 전:
+종료 전 — **약한 체크 (존재 확인) 와 강한 체크 (교차 비교)** 를 함께 만족시킬 것:
+
+**존재 확인**:
 1. plan.md가 존재하는가
 2. status가 `ready`이고 approved_at이 (a 선택 시) ISO timestamp인가
 3. workflow의 각 worker가 `.claude/agents/workers/<name>.md`에 실재하는가 (Glob 확인)
 4. plan.md가 soft cap 60줄 이내인가 (초과 시 경고만, planner 책임)
+
+**교차 비교 (cross-check)**:
+5. plan.md `## Task N` 섹션 개수 = frontmatter `workflow:` step 수와 **일치**하는가
+6. 각 `## Task N` 의 `suggested_worker:` 값이 frontmatter `workflow[step=N].worker` 와 **byte-level 일치**하는가
+7. worker 2명 이상인 ticket의 경우, 각 `plan.<worker>.md` 가 frontmatter `workflow[].plan` 에 명시된 파일명과 **1:1 매칭**되는가 (이름 typo 방지)

@@ -65,15 +65,30 @@ done
 
 > "active 티켓이 없습니다. `/hsdk:plan \"<요구>\"` 로 새 작업을 시작하세요."
 
-### 2b. active 1개
+### 2b. active 1개 — phase 0 routing (revfactory pattern)
 
-해당 티켓의 다음 액션 1개만 명확히:
+revfactory/harness `Phase 0` 의 init/extend/maintain 분기를 hsdk 형태로 도입. 해당 ticket 의 (status × approved_at × drift) 3 축으로 라우팅:
 
-- `status: draft` → "`/hsdk:plan` 을 다시 호출해 grilling을 마무리하세요"
-- `status: ready` + `approved_at: null` → "`/hsdk:plan` 출력의 [a]pprove 게이트를 통과시키세요"
-- `status: ready` + `approved_at: <ISO>` → "`/hsdk:run` 으로 실행하세요"
-- `status: wip` → "이미 실행 중이거나 중단된 상태입니다. `/hsdk:status` 로 상세 확인"
-- `status: blocked` → "plan.md를 검토 후 재계획이 필요합니다"
+#### Drift 감지 (먼저)
+
+```bash
+[ ! -f "$plan" ] && echo "DRIFT=plan_missing"          # ticket 폴더만 있고 plan.md 없음
+[ -z "$status" ] && echo "DRIFT=status_missing"        # frontmatter 손상
+case "$status" in draft|ready|wip|done|blocked) ;; *) echo "DRIFT=status_invalid:$status";; esac
+```
+
+DRIFT 검출 시 사용자 언어로 1줄 보고: "ticket `<id>` 의 plan.md 가 손상되어 있습니다. 수동으로 확인하거나 `rm -rf .harness/tickets/active/<id>` 후 `/hsdk:plan` 으로 다시 시작하세요." 자동 복구 X.
+
+#### 정상 라우팅 (drift 없을 때)
+
+| status | approved_at | 다음 액션 안내 |
+|---|---|---|
+| `draft` | `null` | "`/hsdk:plan` 을 다시 호출하면 직전 grilling 컨텍스트로 이어서 진행할 수 있습니다 (planner refine)" |
+| `ready` | `null` | "plan 은 완성됐지만 아직 승인 전입니다. `/hsdk:plan` 을 다시 호출해 [a]pprove 게이트를 통과시키세요" |
+| `ready` | `<ISO>` | "승인 완료. `/hsdk:run <id>` 로 실행 가능" |
+| `wip` | `<ISO>` | "이전 실행이 wip 상태로 남아있습니다. 다른 세션에서 진행 중인지 확인 후, 중단된 상태면 plan.md 의 status 를 blocked 로 수정해 `/hsdk:plan` 재계획 또는 `rm -rf` 후 재시작" |
+| `blocked` | `<ISO>` | "이전 실행이 blocked. results.md 를 확인 후 plan.md 를 수정하고 `/hsdk:plan` 으로 refine → 재승인 → `/hsdk:run`" |
+| `done` | `<ISO>` | "비정상 — done ticket 은 자동으로 `done/` 로 이동해야 합니다. `mv .harness/tickets/active/<id> .harness/tickets/done/<id>` 로 수동 이동" |
 
 ### 2c. active 2개 이상
 
