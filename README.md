@@ -35,11 +35,31 @@ Then in any target project:
 
 ```
 /hsdk:init                          # 1회만 — .harness/, refs.yaml, default workers 설치
-/hsdk:plan "<your request>"         # grilling → plan.md (draft) → [a]pprove gate
+/hsdk:plan "<your request>"         # grilling → plan.md (draft) → approval gate
 /hsdk:run [<ticket-id>]             # approved_at 검증 후 worker dispatch
 /hsdk:status                        # active 티켓 + 다음 액션
-/hsdk                               # 라우터 (현재 상태 보고 다음 액션 안내)
+/hsdk                               # 라우터 (현재 상태만 보고. 인자 호출 미지원)
 ```
+
+> `/hsdk` 라우터는 **인자 없이만** 호출하세요. `/hsdk "fix bug"` 처럼 인자를 주면 명확히 거부하고 `/hsdk:plan` 을 직접 쓰라고 안내합니다. 라우터의 역할은 (a) 부트스트랩 확인, (b) active 티켓 상태 보고, (c) 다음 액션 안내 3 가지에 한정됩니다.
+
+## Usage flow
+
+```
+┌──────────────┐    ┌──────────────────────────┐    ┌──────────────┐    ┌──────────┐
+│ /hsdk:init   │───▶│ /hsdk:plan "<your req>"  │───▶│ /hsdk:run    │───▶│ done/    │
+│ (1 회만)     │    │ grilling → draft         │    │ workers      │    │ 로 mv    │
+└──────────────┘    │ → 최종 plan 출력         │    │ dispatch     │    └──────────┘
+                    │ → [a]pprove / [e]dit /   │    │ → results.md │
+                    │   [r]eject 게이트        │    └──────────────┘
+                    └──────────────────────────┘
+                                  │
+                                  ├── [a] approve → approved_at: <ISO> 기록, /hsdk:run 으로 진행 가능
+                                  ├── [e] edit    → 피드백 받아 planner refine 후 다시 게이트
+                                  └── [r] reject  → ticket 폐기 (rm -rf)
+```
+
+**Hard gate**: `/hsdk:run` 은 `plan.md` frontmatter `approved_at != null` 검증을 통과해야 worker dispatch 합니다. `[a]pprove` 안 거치면 영구히 dispatch 불가.
 
 ## Architecture
 
@@ -79,11 +99,11 @@ Hard cap overflow requires `escape_reason` in plan.md frontmatter.
 
 - Dialogue: user's language (auto-detect from latest message)
 - Generated file bodies (plan.md, results.md): **Japanese**
-- Identifiers (frontmatter keys, paths, `phase=draft`/`phase=refine`, `## References for this worker`, `## DoD verification`): **English, never translated**
+- Identifiers (frontmatter keys, paths, `phase=draft`/`phase=refine`, `## References for this worker`, `## References for upstream`, `## DoD verification`, `## Result`, `## Files changed`, `suggested_worker`): **English, never translated**
 
 ## Intentionally dropped vs hfx
 
-4-signal worker scoring, commander sub-agent, retry on worker failure, auto docs-keeper, status.md sentinel file, APPROVED sentinel, tasks/ folder, artifacts/ folder, log.md, backlog.md, pre-commit hook, mirror sync. See `docs/design-spec.md` §I (when published) for the full list and rationale.
+4-signal worker scoring, commander sub-agent, retry on worker failure, auto docs-keeper, status.md sentinel file, APPROVED sentinel, tasks/ folder, artifacts/ folder, log.md, backlog.md, pre-commit hook, mirror sync. The rationale lives in skill bodies' Negative Space sections (`skills/plan/SKILL.md`, `skills/run/SKILL.md`) and the planner's anti-pattern list (`agents/planner.md`).
 
 ## Why a plugin instead of a CLI
 
