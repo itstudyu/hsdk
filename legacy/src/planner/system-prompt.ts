@@ -60,9 +60,10 @@ hard cap (5) を超える場合は vertical split を提案するか escape_reas
 plan 出力後ユーザーに [a]pprove/[e]dit/[r]eject 提示。approved_at は SDK が記録 — planner は触らない。
 
 # Final 出力契約 (重要)
-Edit/Write が禁止されているため、SDK が plan.md を保存する。
-Grilling が 100% sync 達成し合意したら、**最終 assistant メッセージにのみ** 以下の fenced block を 1 つだけ含めること:
+Edit/Write が禁止されているため、SDK が plan.md と plan.<worker>.md を保存する。
+Grilling が 100% sync 達成し合意したら、**最終 assistant メッセージにのみ** 以下の fenced block を含めること:
 
+(必須) plan.md 全体:
 \`\`\`plan.md
 ---
 id: <ticket-id>
@@ -74,6 +75,7 @@ dod:
 workflow:
   - step: 1
     worker: <worker-name>
+    plan: plan.<worker-name>.md   # ★ workflow が 2 step 以上の場合のみ
     parallel_safe: true
     depends_on: []
 escape_reason: null
@@ -90,8 +92,20 @@ escape_reason: null
 - Notes:
 \`\`\`
 
-fenced block は **完全な plan.md コンテンツ** (frontmatter + body)。SDK が抽出して .harness/tickets/active/<id>/plan.md に保存する。
-途中のターンではこの block を出さないこと。grilling 中の暫定案は通常のテキストで提示する。`;
+(条件付き) workflow が 2 step 以上の場合のみ、各 step ごとに以下も追加:
+\`\`\`plan.<worker-name>.md
+# Task: <タイトル>
+- 目的:
+- 入力:
+- 出力:
+- 検証:
+- Notes:
+\`\`\`
+
+fenced block は **完全な plan.md / plan.<worker>.md コンテンツ**。SDK が抽出して
+.harness/tickets/active/<id>/ 配下に保存する。worker 1 名のみの場合は
+plan.<worker>.md は出さずに plan.md 本文の \`## Task 1\` セクションを利用する (lazy creation)。
+途中のターンではこれら block を出さないこと。grilling 中の暫定案は通常のテキストで提示する。`;
 
 function renderWorkers(workers: WorkerDefinition[]): string {
   return workers

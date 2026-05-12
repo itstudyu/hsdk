@@ -1,45 +1,54 @@
 # hsdk
 
-Harness SDK on Claude Agent SDK. Planner-first design with hard approval gate.
+Speed-first harness for Claude Code. Planner-first design with hard approval gate.
 
 > 「plan さえ正確なら開発に問題はない。」
+
+Shipped as a **Claude Code plugin** (no CLI, no npm install). Skills run inside your existing Claude Code session so planner grilling stays in the prompt cache window and sub-agent dispatch is native.
 
 ## Install
 
 ```bash
-npm install -g hsdk
+# From the Claude Code marketplace (once published)
+/plugin install hsdk
+
+# Or local development install
+cd ~/.claude/plugins/local
+git clone https://github.com/itstudyu/hsdk.git
 ```
 
-## Usage
+Then in any target project:
 
-```bash
-cd your-project
-hsdk init
-hsdk plan "<your request>"   # grilling → approval gate
-hsdk run <ticket-id>         # dispatch workers after approve
-hsdk status                  # list active tickets
-hsdk worker list             # show installed workers
+```
+/hsdk:init                          # 1회만 — .harness/, refs.yaml, default workers 설치
+/hsdk:plan "<your request>"         # grilling → plan.md (draft) → [a]pprove gate
+/hsdk:run [<ticket-id>]             # approved_at 검증 후 worker dispatch
+/hsdk:status                        # active 티켓 + 다음 액션
+/hsdk                               # 라우터 (현재 상태 보고 다음 액션 안내)
 ```
 
 ## Architecture
 
-- **Planner** (grilling sub-agent): Decision 3-tier exhaustion (Mechanical / Taste / Challenge). Only Read/Glob/Grep/Bash/AskUserQuestion. Edit/Write/Agent forbidden.
-- **Approval Hard Gate**: `plan.md` frontmatter `approved_at` must be a non-null ISO timestamp. Dispatcher refuses otherwise.
-- **Dispatcher**: Topological scheduler. `parallel_safe: true` steps run as concurrent sub-agents. No retry, no auto docs-keeper.
-- **Workers**: Two ship types — `code-analyst` (analyst, Read-only) and `example-editor` (editor template).
+- **Planner** (`agents/planner.md`, sub-agent): Decision 3-tier exhaustion (Mechanical / Taste / User Challenge). Tools = `Read, Glob, Grep, Bash, AskUserQuestion, Edit, Write`. `Agent` forbidden — analyst dispatch is the skill body's job.
+- **Approval Hard Gate**: `plan.md` frontmatter `approved_at` must be a non-null ISO timestamp. `/hsdk:run` refuses dispatch otherwise.
+- **Dispatcher** (skill body of `/hsdk:run`): Topological scheduler. `parallel_safe: true` steps run as concurrent sub-agents in a single message. **No retry**, no auto docs-keeper, no log.md.
+- **Workers**: Two ship types — `code-analyst` (analyst, Read-only) and `example-editor` (editor template). User-defined workers go in `.claude/agents/workers/<name>.md`.
 
-## File layout
+## File layout (target project after `/hsdk:init`)
 
 ```
 .harness/
-  config.ts
   refs.yaml
-  workers/<name>.md
   tickets/active/<id>/
     plan.md                    # overview + workflow (approve target)
     plan.<worker>.md (× N)     # only when ≥2 workers
     results.md                 # dispatcher appends
   tickets/done/<id>/           # mv on completion
+
+.claude/agents/workers/
+  code-analyst.md              # shipped
+  example-editor.md            # shipped
+  <your-worker>.md             # user-defined
 ```
 
 ## Length thresholds
@@ -50,11 +59,28 @@ hsdk worker list             # show installed workers
 | `plan.<worker>.md` | 80 | 200 | planner proposes vertical split |
 | `results.md` | 100 | 300 | dispatcher splits to `results.<worker>.md` |
 
+Hard cap overflow requires `escape_reason` in plan.md frontmatter.
+
 ## Language policy
 
-- Dialogue: user's language (auto-detect)
-- Generated file bodies: Japanese
-- Identifiers (frontmatter keys, paths, contract headers): English
+- Dialogue: user's language (auto-detect from latest message)
+- Generated file bodies (plan.md, results.md): **Japanese**
+- Identifiers (frontmatter keys, paths, `phase=draft`/`phase=refine`, `## References for this worker`, `## DoD verification`): **English, never translated**
+
+## Intentionally dropped vs hfx
+
+4-signal worker scoring, commander sub-agent, retry on worker failure, auto docs-keeper, status.md sentinel file, APPROVED sentinel, tasks/ folder, artifacts/ folder, log.md, backlog.md, pre-commit hook, mirror sync. See `docs/design-spec.md` §I (when published) for the full list and rationale.
+
+## Why a plugin instead of a CLI
+
+hsdk was originally specced as `npm i -g hsdk` with `commander` sub-commands. It pivoted to plugin-only because:
+
+1. **Cache hit rate** — planner grilling spans 3–5 turns. Each CLI invocation is a cold start that re-sends the system prompt; plugin mode keeps the 5-minute prompt cache warm, cutting tokens ~3–4×.
+2. **Grilling UX** — `AskUserQuestion` with options/previews is native to Claude Code. A CLI would re-implement this with readline.
+3. **Sub-agent dispatch** — planner → analyst → editor handoff stays inside one Claude session. CLI mode would have to serialize state through `plan.md` only.
+4. **No CI/batch demand** — usage is interactive. The CLI surface added complexity without a customer.
+
+The legacy TypeScript implementation is preserved in `legacy/` for reference.
 
 ## License
 

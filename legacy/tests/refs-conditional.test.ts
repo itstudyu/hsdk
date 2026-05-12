@@ -83,4 +83,30 @@ describe('buildWorkerPrompt conditional auto-load', () => {
     });
     expect(prompt).not.toContain('# auth doc body');
   });
+
+  it('omits "Files changed" section for analyst workers (spec H)', async () => {
+    const analyst = {
+      ...worker,
+      frontmatter: { ...worker.frontmatter, type: 'analyst' as const, tools: ['Read'] },
+    };
+    const prompt = await buildWorkerPrompt({
+      projectRoot: dir,
+      worker: analyst,
+      planSection: '## Task 1\n調査',
+      refs: { version: 1, bootstrapped: true, defaults: [], 'user-defined': [], 'per-worker': {} },
+    });
+    expect(prompt).not.toMatch(/^## Files changed/m);
+    expect(prompt).toMatch(/^## Result/m);
+    expect(prompt).toMatch(/^## DoD verification/m);
+  });
+
+  it('includes "Files changed" section for editor workers', async () => {
+    const prompt = await buildWorkerPrompt({
+      projectRoot: dir,
+      worker,
+      planSection: '## Task 1\n実装',
+      refs: { version: 1, bootstrapped: true, defaults: [], 'user-defined': [], 'per-worker': {} },
+    });
+    expect(prompt).toMatch(/^## Files changed/m);
+  });
 });

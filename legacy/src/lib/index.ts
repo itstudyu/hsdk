@@ -1,7 +1,7 @@
 // public library entry — re-exports core types and runners + createHarness factory
 export * from '../schemas/index.js';
 export * from '../io/index.js';
-export { runPlanner, extractPlanBlock } from '../planner/run.js';
+export { runPlanner, extractPlanBlock, extractWorkerPlanBlocks } from '../planner/run.js';
 export { runApprovalLoop } from '../planner/approval.js';
 export { dispatch } from '../dispatcher/run.js';
 export { assertApproved, ApprovalGateError } from '../dispatcher/gate.js';

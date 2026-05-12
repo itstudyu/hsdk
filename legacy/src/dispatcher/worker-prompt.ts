@@ -52,6 +52,16 @@ async function loadRefs(
   return blocks.join('\n\n');
 }
 
+function buildOutputFormat(type: 'analyst' | 'editor'): string {
+  // Spec H: analyst には "Files changed" を強制しない (Edit/Write 不可のため)
+  const lines = ['# Output Format', '## Result', 'success | partial | failure', ''];
+  if (type === 'editor') {
+    lines.push('## Files changed', '- <path>: <reason>', '');
+  }
+  lines.push('## DoD verification', '- [ ] <checklist item>', '', '## Notes', '<free-form>');
+  return lines.join('\n');
+}
+
 export async function buildWorkerPrompt(input: WorkerPromptInput): Promise<string> {
   const refsBlock = await loadRefs(
     input.projectRoot,
@@ -64,7 +74,7 @@ export async function buildWorkerPrompt(input: WorkerPromptInput): Promise<strin
     input.worker.body,
     refsBlock ? `# References\n${refsBlock}` : '',
     `# Your Task\n${input.planSection}`,
-    `# Output Format\n## Result: success | partial | failure\n## Files changed: <path: reason>\n## DoD verification: <checklist>\n## Notes: <free-form>`,
+    buildOutputFormat(input.worker.frontmatter.type),
   ]
     .filter(Boolean)
     .join('\n\n');

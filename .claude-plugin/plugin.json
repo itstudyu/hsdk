@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "hsdk",
+  "version": "0.1.0",
+  "description": "Speed-first harness for Claude Code: planner + dispatcher + workers with hard approval gate. Skills: /hsdk:plan (grilling + explicit approval), /hsdk:run (approved_at hard gate + worker dispatch, no retry), /hsdk:init (target-project bootstrap), /hsdk:status (active ticket overview), /hsdk:hsdk (router). Philosophy: 'plan さえ正確なら開発に問題はない' — Decision 3-tier grilling (Mechanical/Taste/Challenge) reaches 100% sync before any editor worker runs. plan.md frontmatter approved_at != null is the only thing that unblocks dispatch. Vertical-slice tasks (soft cap 2, hard cap 5). Default workers: code-analyst (analyst, Read-only) + example-editor (editor template). Intentionally dropped vs hfx: 4-signal scoring, retry, auto docs-keeper, status.md sentinel, log.md, backlog.md, tasks/ folder, artifacts/ folder. Language policy: user dialogue follows user language, generated files (plan.md, results.md) are Japanese, identifiers and contract headers are English.",
+  "author": {
+    "name": "itstudyu",
+    "url": "https://github.com/itstudyu"
+  },
+  "homepage": "https://github.com/itstudyu/hsdk",
+  "repository": "https://github.com/itstudyu/hsdk",
+  "license": "MIT",
+  "keywords": [
+    "harness",
+    "claude-code-plugin",
+    "planner",
+    "sub-agents",
+    "approval-gate",
+    "vertical-slice"
+  ]
+}

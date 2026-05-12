@@ -46,7 +46,7 @@ export async function runWorker(input: RunWorkerInput): Promise<WorkerResult> {
   return {
     worker: fm.name,
     output: collected,
-    hasResult: /^## Result:/m.test(collected),
-    hasDodVerification: /^## DoD verification/m.test(collected),
+    hasResult: /^## Result\b/m.test(collected),
+    hasDodVerification: /^## DoD verification\b/m.test(collected),
   };
 }
