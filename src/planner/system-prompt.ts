@@ -53,6 +53,7 @@ escape_reason: null
 
 # Task 粒度
 Vertical slice 原則 (INVEST + orchestrator-workers)。Soft cap 2 / Hard cap 5。
+hard cap (5) を超える場合は vertical split を提案するか escape_reason を frontmatter に明記。
 各 task は 5-section: 目的 / 入力 / 出力 / 検証 / Notes。
 
 # Approval Hard Gate

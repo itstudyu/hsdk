@@ -4,9 +4,12 @@ import {
   PLAN_MD,
   PLAN_WORKER_MD,
   RESULTS_MD,
+  TASK_COUNT,
   countLines,
+  countTaskSections,
   classify,
   assertWithinHardCap,
+  assertTaskCountWithinHardCap,
   LengthCapError,
 } from '../src/io/lengths.js';
 
@@ -58,6 +61,43 @@ describe('assertWithinHardCap', () => {
   it('passes within soft cap', () => {
     expect(() =>
       assertWithinHardCap('one\ntwo\n', PLAN_MD, { escapeReason: null, label: 'plan.md' }),
+    ).not.toThrow();
+  });
+});
+
+describe('task count cap (spec C: soft 2 / hard 5)', () => {
+  it('declares TASK_COUNT matching spec', () => {
+    expect(TASK_COUNT).toEqual({ soft: 2, hard: 5 });
+  });
+
+  it('countTaskSections counts ## Task N headings', () => {
+    const body = ['# Overview', '## Task 1', 'a', '## Task 2', 'b', '## Task 3', 'c'].join('\n');
+    expect(countTaskSections(body)).toBe(3);
+  });
+
+  it('countTaskSections ignores non-task headings', () => {
+    const body = ['## Tasks overview', '## Task 1', 'a', '### Task 2', 'nested'].join('\n');
+    expect(countTaskSections(body)).toBe(1);
+  });
+
+  it('assertTaskCountWithinHardCap throws beyond hard cap without escape_reason', () => {
+    const body = Array.from({ length: 6 }, (_, i) => `## Task ${i + 1}\nbody`).join('\n');
+    expect(() =>
+      assertTaskCountWithinHardCap(body, { escapeReason: null, label: 'plan.md' }),
+    ).toThrow(LengthCapError);
+  });
+
+  it('assertTaskCountWithinHardCap accepts overflow when escape_reason set', () => {
+    const body = Array.from({ length: 6 }, (_, i) => `## Task ${i + 1}\nbody`).join('\n');
+    expect(() =>
+      assertTaskCountWithinHardCap(body, { escapeReason: 'cannot split', label: 'plan.md' }),
+    ).not.toThrow();
+  });
+
+  it('assertTaskCountWithinHardCap accepts within hard cap', () => {
+    const body = Array.from({ length: 5 }, (_, i) => `## Task ${i + 1}\nbody`).join('\n');
+    expect(() =>
+      assertTaskCountWithinHardCap(body, { escapeReason: null, label: 'plan.md' }),
     ).not.toThrow();
   });
 });

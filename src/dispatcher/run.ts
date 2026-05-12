@@ -1,5 +1,4 @@
 // top-level dispatcher: gate → schedule batches → execute → append results.md → mv done
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { assertApproved } from './gate.js';
 import { scheduleBatches } from './topo.js';
@@ -86,5 +85,3 @@ export async function dispatch(opts: DispatchOptions): Promise<void> {
     throw err;
   }
 }
-
-export { readFile };

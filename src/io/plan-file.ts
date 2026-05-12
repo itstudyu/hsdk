@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import matter from 'gray-matter';
 import { PlanFrontmatter, assertWorkflowDag } from '../schemas/plan.js';
 import type { PlanFrontmatter as Plan } from '../schemas/plan.js';
-import { PLAN_MD, assertWithinHardCap } from './lengths.js';
+import { PLAN_MD, assertWithinHardCap, assertTaskCountWithinHardCap } from './lengths.js';
 
 export interface PlanFile {
   frontmatter: Plan;
@@ -22,6 +22,10 @@ export async function writePlanFile(path: string, file: PlanFile): Promise<void>
   PlanFrontmatter.parse(file.frontmatter);
   assertWorkflowDag(file.frontmatter.workflow);
   assertWithinHardCap(file.body, PLAN_MD, {
+    escapeReason: file.frontmatter.escape_reason,
+    label: 'plan.md',
+  });
+  assertTaskCountWithinHardCap(file.body, {
     escapeReason: file.frontmatter.escape_reason,
     label: 'plan.md',
   });

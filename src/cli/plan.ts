@@ -2,7 +2,6 @@
 import { join } from 'node:path';
 import { runPlanner } from '../planner/run.js';
 import { runApprovalLoop } from '../planner/approval.js';
-import { resolveHarnessPaths } from '../io/paths.js';
 import pc from 'picocolors';
 
 function slugify(text: string): string {
@@ -28,8 +27,6 @@ export async function runPlanCommand(projectRoot: string, request: string): Prom
   const choice = await runApprovalLoop(planMd);
   process.stdout.write(`\nResult: ${choice}\n`);
   if (choice === 'approve') {
-    const paths = resolveHarnessPaths(projectRoot);
-    void paths;
     process.stdout.write(pc.green(`\nReady to dispatch. Run: hsdk run ${ticketId}\n`));
   }
 }
