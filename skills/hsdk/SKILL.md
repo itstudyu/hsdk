@@ -33,15 +33,16 @@ fi
 
 ## Step 1. 인자 분기
 
-### 1a. 인자 있음 → /hsdk:plan으로 위임
+### 1a. 인자 있음 — 명확히 거부하고 `/hsdk:plan` 으로 안내
 
-사용자에게 1줄 안내:
+Claude Code skill 은 다른 skill 을 직접 invoke 할 수 없다 (skill body 안에서 `/hsdk:plan` 을 부르는 메커니즘 부재). 따라서 인자가 있어도 이 라우터에서 grilling 을 시작하지 않는다 — **단순 안내 후 종료**:
 
-> "`/hsdk:plan` 으로 위임합니다. grilling 후 명시적 승인 게이트가 있습니다."
+> "`/hsdk` 라우터는 인자 호출을 지원하지 않습니다. 직접 `/hsdk:plan \"<your request>\"` 을 실행하세요. 라우터는 (a) 부트스트랩 확인 + (b) active 티켓 상태 보고 + (c) 다음 액션 안내 전용입니다."
 
-그리고 `/hsdk:plan <전달 인자>` 와 동일하게 동작하도록 안내한다. (skill에서 다른 skill 직접 호출은 불가하므로, 사용자에게 `/hsdk:plan <요구>` 를 다시 실행하도록 명시적으로 요청하거나, 이 skill 내부에서 그대로 plan.md 작업을 시작하지 않고 안내만 한다.)
-
-> **운용 노트**: Claude Code skill끼리 직접 invoke 할 수 없으므로, 이 skill은 "라우터" 역할에 한정. 사용자에게 적절한 다음 명령을 알려주는 책임만 진다.
+이렇게 명확히 거부하는 이유:
+1. 라우터가 planner Agent 를 inline 호출하면 `/hsdk:plan` 과 책임 중복 발생
+2. 사용자가 `/hsdk` 와 `/hsdk:plan` 의 차이를 mental model 로 가져갈 수 있음 ("라우터 = 보고만, 작업은 plan/run/init")
+3. hfx v0.4.10 이 자동 부트스트랩을 제거하며 `/hfx:hfx` 와 `/hfx:init` 책임을 분리한 결정과 동일한 결
 
 ### 1b. 인자 없음 → status 요약 + 다음 액션 안내
 
@@ -92,7 +93,11 @@ DRIFT 검출 시 사용자 언어로 1줄 보고: "ticket `<id>` 의 plan.md 가
 
 ### 2c. active 2개 이상
 
-`/hsdk:status` 와 동일한 표 출력 + 각 티켓의 다음 액션. 자세한 안내는 `/hsdk:status` 권장.
+각 ticket 에 대해 **2b 의 drift 검사 + status 라우팅 표를 반복 적용** (drift 가 있는 ticket 은 정상 ticket 보다 위에 표시). 출력 형식은 `/hsdk:status` 와 동일한 표 — id / status / approved_at / 다음 액션 컬럼.
+
+drift 가 1건이라도 있으면 표 상단에 경고 1줄: "주의: \<N\> 개 ticket 에 drift 가 감지됐습니다. 정상 ticket 작업 전 drift 정리를 권장합니다."
+
+자세한 진단·재계획은 `/hsdk:status` 또는 개별 ticket-id 로 `/hsdk:plan` / `/hsdk:run` 호출 권장.
 
 ## 4-skill 흐름 요약 (참조)
 

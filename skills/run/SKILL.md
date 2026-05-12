@@ -175,13 +175,13 @@ for d in $DEPS; do
 done
 ```
 
-worker prompt 합성 — 두 영문 contract header 를 모두 사용:
+worker prompt 합성 — 두 영문 contract header 를 모두 사용. `description` には plan.\<worker\>.md の `## Task N` ヘッダ直下の 1 行 (Why) を **そのまま** 抜き出して入れる (例: `"認証 middleware の token 漏洩を修正"` のように具体的に。`"task 한 줄 요약"` のようなメタ表現は禁止):
 
 ```
 Agent(
-  description="<task 한 줄 요약, 일본어>",
-  subagent_type="<worker>",
-  prompt="@.harness/tickets/active/$ID/plan.$WORKER.md\n\n## References for upstream\n<$UPSTREAM_BLOCK>\n\n## References for this worker\n- <path1>\n- <path2>"
+  description="認証 middleware の token 漏洩を修正",
+  subagent_type="example-editor",
+  prompt="@.harness/tickets/active/$ID/plan.$WORKER.md\n\n## References for upstream\n- @.harness/tickets/active/$ID/results.md (## Step 1 — code-analyst 섹션 참조)\n\n## References for this worker\n- /abs/path/to/coding-rule.md"
 )
 ```
 
