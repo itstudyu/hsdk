@@ -1,0 +1,34 @@
+{
+  "name": "hsdk",
+  "owner": {
+    "name": "itstudyu",
+    "email": "ysjapan101@gmail.com"
+  },
+  "metadata": {
+    "description": "hsdk — speed-first harness for Claude Code. Single-plugin marketplace; the repository is both the marketplace and the plugin.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "hsdk",
+      "source": "./",
+      "description": "Speed-first harness for Claude Code: planner + dispatcher + workers with hard approval gate. Skills: /hsdk:plan (grilling + explicit approval), /hsdk:run (approved_at hard gate + worker dispatch, no retry), /hsdk:init (target-project bootstrap), /hsdk:status (active ticket overview), /hsdk:hsdk (router). Philosophy: 'plan さえ正確なら開発に問題はない' — Decision 3-tier grilling reaches 100% sync before any editor worker runs. Vertical-slice tasks (soft cap 2, hard cap 5). Intentionally dropped vs hfx: 4-signal scoring, retry, auto docs-keeper, status.md sentinel, log.md, backlog.md.",
+      "version": "0.1.0",
+      "author": {
+        "name": "itstudyu",
+        "url": "https://github.com/itstudyu"
+      },
+      "homepage": "https://github.com/itstudyu/hsdk",
+      "repository": "https://github.com/itstudyu/hsdk",
+      "license": "MIT",
+      "keywords": [
+        "harness",
+        "claude-code-plugin",
+        "planner",
+        "sub-agents",
+        "approval-gate"
+      ],
+      "category": "productivity"
+    }
+  ]
+}
