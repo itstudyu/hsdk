@@ -54,6 +54,35 @@ STATUS=$(awk '/^status:/{print $2; exit}' .harness/tickets/active/$ID/plan.md)
 
 **editor worker dispatch는 위 게이트 통과 후에만 허용** — spec B3.
 
+### Step 1.5. 길이 hard cap 재검증 (spec C 방어선)
+
+plan skill 의 Step 2.0 와 동일 로직을 다시 한 번 검사 (frontmatter 손편집 / 직접 git 조작으로 plan 단계를 우회한 케이스 방어):
+
+```bash
+PLAN=".harness/tickets/active/$ID/plan.md"
+PLAN_LINES=$(wc -l < "$PLAN" | tr -d ' ')
+ESCAPE=$(awk '/^escape_reason:/{print $2; exit}' "$PLAN")
+VIOLATIONS=""
+
+[ "$PLAN_LINES" -gt 120 ] && { [ -z "$ESCAPE" ] || [ "$ESCAPE" = "null" ]; } \
+  && VIOLATIONS="$VIOLATIONS plan.md($PLAN_LINES)"
+
+for f in .harness/tickets/active/$ID/plan.*.md; do
+  [ -f "$f" ] || continue
+  L=$(wc -l < "$f" | tr -d ' ')
+  [ "$L" -gt 200 ] && { [ -z "$ESCAPE" ] || [ "$ESCAPE" = "null" ]; } \
+    && VIOLATIONS="$VIOLATIONS $(basename $f)($L)"
+done
+
+[ -n "$VIOLATIONS" ] && echo "HARD_CAP_VIOLATION:$VIOLATIONS"
+```
+
+`HARD_CAP_VIOLATION` 검출 시 즉시 거부 (사용자 언어):
+
+> "plan 파일이 hard cap 을 초과했고 `escape_reason` 이 비어있습니다 ($VIOLATIONS). `/hsdk:plan` 으로 돌아가 split 하거나 escape_reason 을 기입한 뒤 다시 시도하세요."
+
+dispatch X. status 변경 X.
+
 ## Step 2. status: ready → wip 전이
 
 ```bash
@@ -104,11 +133,26 @@ worker 파일 없으면 즉시 `status: blocked` + 사용자 보고.
 - worker 1명만 있는 ticket → `plan.md` 본문의 `## Task N` 섹션을 추출하여 inject
 - worker 2명 이상 → `plan.<worker>.md` 를 그대로 inject
 
-### 4.3 per-worker refs 주입
+### 4.3 per-worker refs 주입 (auto-load mode 별 분기 — spec F)
+
+`.harness/refs.yaml` 의 `per-worker.<WORKER>` 항목을 읽어 References 블록을 합성. **auto-load 모드 별로 분기**:
+
+| 모드 | 동작 |
+|---|---|
+| `always` | 무조건 References 블록에 포함 |
+| `conditional` | `keywords:` 중 하나라도 worker 의 plan 본문 (plan.\<worker\>.md 또는 plan.md 의 ## Task N) 에 含まれる場合のみ포함. case-insensitive grep |
+| `manual` | dispatcher는 포함しない (사용자 명시 요청 시만 — run skill 에서는 무視) |
 
 ```bash
-# .harness/refs.yaml 의 per-worker.<WORKER> 항목을 읽어 References 블록으로 append
+WORKER_PLAN=".harness/tickets/active/$ID/plan.$WORKER.md"
+[ -f "$WORKER_PLAN" ] || WORKER_PLAN=".harness/tickets/active/$ID/plan.md"
+
+# refs.yaml をパースして per-worker.<WORKER> の各 entry を分岐評価
+# (実装は yq か Python の yaml モジュール、もしくは awk + grep の組合せ)
+# 出力: REFS_BLOCK="- /abs/path1\n- /abs/path2\n..."
 ```
+
+마무리 — `REFS_BLOCK` が空なら References 헤더 자체를 omit. defaults/user-defined の always ref も同じルールで合成 (planner 段階で既に Read 済みでも、worker prompt にパス自体を渡すと worker 側で再 Read 可能)。
 
 ### 4.4 Agent 호출
 
@@ -124,21 +168,38 @@ Agent(
 
 독립 step(`depends_on` 모두 완료 + `parallel_safe: true`)은 **단일 메시지에서 multiple Agent 동시 호출**. 의존 step은 순차.
 
-## Step 5. 결과 집계
+## Step 5. 결과 집계 (300 行 hard cap で auto-split)
 
-각 worker 응답을 results.md에 sequential append:
+각 worker 응답 append 직전에 라우팅 결정:
 
 ```bash
-cat >> .harness/tickets/active/$ID/results.md << EOF
-## Step <N> — <worker> (<완료 ISO>)
+TARGET=".harness/tickets/active/$ID/results.md"
+CUR_LINES=0
+[ -f "$TARGET" ] && CUR_LINES=$(wc -l < "$TARGET" | tr -d ' ')
 
-<worker 응답 본문 그대로>
+# 既存 results.md が 300 行を超えていれば、この worker 専用ファイルへ分離
+if [ "$CUR_LINES" -gt 300 ]; then
+  TARGET=".harness/tickets/active/$ID/results.$WORKER.md"
+fi
+
+cat >> "$TARGET" << EOF
+## Step $N — $WORKER ($COMPLETED_ISO)
+
+$WORKER_OUTPUT
 
 ---
 EOF
+
+# append 後にもう一度測定。今回の append でしきい値を越えたなら、
+# 次の worker から自動的に results.$NEXT_WORKER.md に書く合図として
+# results.md の末尾に分離マーカーを 1 行残す。
+POST_LINES=$(wc -l < "$TARGET" | tr -d ' ')
+if [ "$TARGET" = ".harness/tickets/active/$ID/results.md" ] && [ "$POST_LINES" -gt 300 ]; then
+  echo "<!-- results.md exceeded 300 lines; subsequent workers split to results.<worker>.md -->" >> "$TARGET"
+fi
 ```
 
-results.md hard cap 300행 초과 시 `results.<worker>.md`로 분리 (spec C — 길이 임계).
+> spec C 길이 임계: `results.md` soft 100 / hard 300. hard 초과 후의 worker 결과는 `results.<worker>.md` 로 자동 분리. 既存 results.md は維持 (削除しない、過去結果の保全のため)。最終ユーザー報告では results.md と results.\<worker\>.md の両方を案内する。
 
 ## Step 6. 실패 처리 (retry 없음)
 
